@@ -38,7 +38,7 @@ int encryption_enabled;
 int input_key;
 const char key = 5;
 
-double compression_ratio = 0;
+unsigned int compression_ratio = 0;
 
 #define COMP_BUF_SIZE 512
 
@@ -96,32 +96,35 @@ static void sbull_transfer(struct sbull_dev *dev, unsigned long sector,
 	unsigned int dlen = COMP_BUF_SIZE;
 	unsigned int slen;
 	int ret;
-	struct crypto_comp *tfm;
+	//struct crypto_comp *tfm;
 
 	const char *name = "sbulla";
 	struct crypto_comp *comp;
 	int *dsize = vmalloc(sizeof(int));
+	//double prev, next;
 	
-
+	comp = crypto_alloc_comp(name, 0, 0);
 	if ((offset + nbytes) > dev->size) {
 		printk(KERN_NOTICE "Beyond-end write (%ld %ld)\n", offset, nbytes);
 		return;
 	}
 	if (write) {
 		if (encryption_enabled) { encryptDecrypt(buffer, nbytes); }
-		comp = crypto_alloc_comp(name, 0, 0);
+		//comp = crypto_alloc_comp(name, 0, 0);
 		*dsize = nbytes;
 		ret = crypto_comp_compress(comp, (void *)buffer, nbytes, dev->data+offset, dsize); 
 		if (ret) {
 			pr_err("compress error!");
 			goto out;
 		}
+		//next = nbytes;
 		if (dsize) {
+			//prev =*dsize;
 			if (compression_ratio) {
-				compression_ratio = (compression_ratio + (double)*dsize / (double)nbytes * 100)/2;
+				compression_ratio = (compression_ratio + ((nbytes * 100) / (*dsize)))/2;
 			}
 			else {
-				compression_ratio = (double)*dsize / (double)nbytes * 100;
+				compression_ratio = (nbytes * 100) / (*dsize);
 			}
 		} else printk(KERN_INFO "compression failed\n");
 				
@@ -130,7 +133,7 @@ static void sbull_transfer(struct sbull_dev *dev, unsigned long sector,
 		
 		//memcpy(buffer, dev->data + offset, nbytes);
 		slen = dlen;
-		ret = crypto_comp_decompress(tfm, dev->data+offset, slen, buffer, &dlen);
+		ret = crypto_comp_decompress(comp, dev->data+offset, slen, buffer, &dlen);
 		if(ret){
 			pr_err("decompress error!");
 			goto out;
@@ -352,7 +355,7 @@ static void sbull_exit(void)
 		if (dev->data)
 			vfree(dev->data);
 	}
-	printk(KERN_INFO "compression ratio : %lf\n", compression_ratio);
+	printk(KERN_INFO "compression ratio : %ld\n", compression_ratio);
 	unregister_blkdev(sbull_major, "sbull");
 	kfree(Devices);
 }
