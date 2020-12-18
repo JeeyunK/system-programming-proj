@@ -99,7 +99,7 @@ static void sbull_transfer(struct sbull_dev *dev, unsigned long sector,
 	struct crypto_comp *tfm;
 
 	const char *name = "sbulla";
-	struct crypto_comp comp;
+	struct crypto_comp *comp;
 	int *dsize = vmalloc(sizeof(int));
 	
 
@@ -111,7 +111,20 @@ static void sbull_transfer(struct sbull_dev *dev, unsigned long sector,
 		if (encryption_enabled) { encryptDecrypt(buffer, nbytes); }
 		comp = crypto_alloc_comp(name, 0, 0);
 		*dsize = nbytes;
-		crypto_comp_compress(comp, (void *)buffer, nbytes, dev->data+offset, dsize); 
+		ret = crypto_comp_compress(comp, (void *)buffer, nbytes, dev->data+offset, dsize); 
+		if (ret) {
+			pr_err("compress error!");
+			goto out;
+		}
+		if (dsize) {
+			if (compression_ratio) {
+				compression_ratio = (compression_ratio + (double)*dsize / (double)nbytes * 100)/2;
+			}
+			else {
+				compression_ratio = (double)*dsize / (double)nbytes * 100;
+			}
+		} else printk(KERN_INFO "compression failed\n");
+				
 		//memcpy(dev->data + offset, buffer, nbytes);
 	} else {
 		
@@ -339,6 +352,7 @@ static void sbull_exit(void)
 		if (dev->data)
 			vfree(dev->data);
 	}
+	printk(KERN_INFO "compression ratio : %lf\n", compression_ratio);
 	unregister_blkdev(sbull_major, "sbull");
 	kfree(Devices);
 }
