@@ -9,3 +9,6 @@ rmmod $module $* || exit 1
 rm -f /dev/${device}[a-d]* /dev/${device}
 
 
+
+
+
