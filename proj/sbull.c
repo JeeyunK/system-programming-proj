@@ -22,6 +22,8 @@
 #include <linux/buffer_head.h>	/* invalidate_bdev */
 #include <linux/bio.h>
 
+#include <linux/crypto.h> //for compression
+
 MODULE_LICENSE("Dual BSD/GPL");
 
 static int sbull_major = 0;
@@ -32,6 +34,7 @@ static int ndevices = 1;
 int encryption_enabled;
 int input_key;
 const char key = 5;
+double compression_ratio = 0;
 
 /*
  * Minor number and partition management.
@@ -85,13 +88,21 @@ static void sbull_transfer(struct sbull_dev *dev, unsigned long sector,
 	unsigned long offset = sector * KERNEL_SECTOR_SIZE;
 	unsigned long nbytes = nsect * KERNEL_SECTOR_SIZE;
 
+	const char *name = "sbulla";
+	struct crypto_comp comp;
+	int *dsize = vmalloc(sizeof(int));
+	
+
 	if ((offset + nbytes) > dev->size) {
 		printk(KERN_NOTICE "Beyond-end write (%ld %ld)\n", offset, nbytes);
 		return;
 	}
 	if (write) {
 		if (encryption_enabled) { encryptDecrypt(buffer, nbytes); }
-		memcpy(dev->data + offset, buffer, nbytes);
+		comp = crypto_alloc_comp(name, 0, 0);
+		*dsize = nbytes;
+		crypto_comp_compress(comp, (void *)buffer, nbytes, dev->data+offset, dsize); 
+		//memcpy(dev->data + offset, buffer, nbytes);
 	} else {
 		memcpy(buffer, dev->data + offset, nbytes);
 		if (encryption_enabled && key == input_key) { encryptDecrypt(buffer, nbytes); }
