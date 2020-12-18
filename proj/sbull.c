@@ -21,7 +21,8 @@
 #include <linux/blkdev.h>
 #include <linux/buffer_head.h>	/* invalidate_bdev */
 #include <linux/bio.h>
-
+#include <crypto/acompress.h>
+#include <crypto/hash.h>
 MODULE_LICENSE("Dual BSD/GPL");
 
 static int sbull_major = 0;
@@ -32,6 +33,7 @@ static int ndevices = 1;
 int encryption_enabled;
 int input_key;
 const char key = 5;
+#define COMP_BUF_SIZE 512
 
 /*
  * Minor number and partition management.
@@ -84,6 +86,11 @@ static void sbull_transfer(struct sbull_dev *dev, unsigned long sector,
 	// TODO: complete
 	unsigned long offset = sector * KERNEL_SECTOR_SIZE;
 	unsigned long nbytes = nsect * KERNEL_SECTOR_SIZE;
+	unsigned int dlen = COMP_BUF_SIZE;
+	unsigned int slen;
+	int ret;
+	char *dst, *src;
+	struct crypto_comp *tfm;
 
 	if ((offset + nbytes) > dev->size) {
 		printk(KERN_NOTICE "Beyond-end write (%ld %ld)\n", offset, nbytes);
@@ -93,9 +100,21 @@ static void sbull_transfer(struct sbull_dev *dev, unsigned long sector,
 		if (encryption_enabled) { encryptDecrypt(buffer, nbytes); }
 		memcpy(dev->data + offset, buffer, nbytes);
 	} else {
+		
+		//memcpy(buffer, dev->data + offset, nbytes);
+		slen = dlen;
+		src = dev->data+offset;
+		ret = crypto_comp_decompress(tfm, src, slen, dst, &dlen);
+		buffer = dst;
+		if(ret){
+			pr_err("decompress error!");
+			goto out;
+		}
 		memcpy(buffer, dev->data + offset, nbytes);
 		if (encryption_enabled && key == input_key) { encryptDecrypt(buffer, nbytes); }
 	}
+out:
+	return ;
 }
 
 
