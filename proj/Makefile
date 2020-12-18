@@ -48,3 +48,6 @@ key :
 
 change_mode :
 	gcc change_mode.c -o change_mode
+
+main :
+	gcc main.c -o main
