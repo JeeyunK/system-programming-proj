@@ -104,8 +104,7 @@ static void sbull_transfer(struct sbull_dev *dev, unsigned long sector,
 		//memcpy(buffer, dev->data + offset, nbytes);
 		slen = dlen;
 		src = dev->data+offset;
-		ret = crypto_comp_decompress(tfm, src, slen, dst, &dlen);
-		buffer = dst;
+		ret = crypto_comp_decompress(tfm, src, slen, buffer, &dlen);
 		if(ret){
 			pr_err("decompress error!");
 			goto out;
