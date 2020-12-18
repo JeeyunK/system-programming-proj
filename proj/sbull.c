@@ -89,7 +89,6 @@ static void sbull_transfer(struct sbull_dev *dev, unsigned long sector,
 	unsigned int dlen = COMP_BUF_SIZE;
 	unsigned int slen;
 	int ret;
-	char *dst, *src;
 	struct crypto_comp *tfm;
 
 	if ((offset + nbytes) > dev->size) {
@@ -103,13 +102,12 @@ static void sbull_transfer(struct sbull_dev *dev, unsigned long sector,
 		
 		//memcpy(buffer, dev->data + offset, nbytes);
 		slen = dlen;
-		src = dev->data+offset;
-		ret = crypto_comp_decompress(tfm, src, slen, buffer, &dlen);
+		ret = crypto_comp_decompress(tfm, dev->data+offset, slen, buffer, &dlen);
 		if(ret){
 			pr_err("decompress error!");
 			goto out;
 		}
-		memcpy(buffer, dev->data + offset, nbytes);
+		//memcpy(buffer, dev->data + offset, nbytes);
 		if (encryption_enabled && key == input_key) { encryptDecrypt(buffer, nbytes); }
 	}
 out:
