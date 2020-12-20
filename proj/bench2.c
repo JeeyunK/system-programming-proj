@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <time.h>
 
 #define BUF_SIZE 4096
 
@@ -15,8 +16,10 @@ int main() {
 
 	for (int i=0;i<100;i++) {
 		comp_decomp_succeed = 1;
+		srand((unsigned int)i);
 		for (int j=0;j<4096;j++) {
-		buf1[i] = letters[rand()%26];
+			//srand((unsigned int)time(NULL));
+			buf1[j] = letters[rand()%26];
 		}
 		if ((fd = open("/dev/sbulla", O_RDWR)) < 0) {
 			perror("open error");
