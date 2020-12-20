@@ -41,6 +41,7 @@ const char key = 5;
 //char *output_buffer;
 unsigned int compression_ratio = 0;
 unsigned int comp_size[1024*1024][2] = {0,};
+struct crypto_comp *comp;
 
 #define COMP_BUF_SIZE 512
 
@@ -101,13 +102,13 @@ static void sbull_transfer(struct sbull_dev *dev, unsigned long sector,
 	//struct crypto_comp *tfm;
 
 	//const char *name = dev->gd->disk_name;
-	struct crypto_comp *comp;
+	//struct crypto_comp *comp;
 	//unsigned int *dsize = kmalloc(sizeof(int), GFP_KERNEL);
 	//double prev, next;
 	char *output_buffer = kmalloc(dsize, GFP_KERNEL);
 	memset(output_buffer, 0, dsize);
 	//comp = kmalloc(sizeof(struct crypto_comp), GFP_KERNEL);	
-	comp = crypto_alloc_comp(dev->gd->disk_name, 0, 0);
+	//comp = crypto_alloc_comp(dev->gd->disk_name, 0, 0);
 	//dsize = nbytes;
 	if ((offset + nbytes) > dev->size) {
 		printk(KERN_NOTICE "Beyond-end write (%ld %ld)\n", offset, nbytes);
@@ -144,6 +145,7 @@ static void sbull_transfer(struct sbull_dev *dev, unsigned long sector,
 		slen = comp_size[sector][1];
 		memset(output_buffer, 0, slen);
 		memcpy(output_buffer, dev->data + offset, slen);
+		if (!comp) printk(KERN_ALERT "comp NULL\n");
 		ret = crypto_comp_decompress(comp, output_buffer, slen, buffer, &dsize);
 		if(ret){
 			pr_err("decompress error!");
@@ -318,6 +320,7 @@ static void setup_device(struct sbull_dev *dev, int which)
 	snprintf(dev->gd->disk_name, 32, "sbull%c", which + 'a');
 	set_capacity(dev->gd, nsectors * (hardsect_size / KERNEL_SECTOR_SIZE));
 	add_disk(dev->gd);
+	//comp = crypto_alloc_comp("lzo", 0, 0);
     
     return;
 
@@ -345,6 +348,9 @@ static int __init sbull_init(void)
 	Devices = kmalloc(ndevices*sizeof (struct sbull_dev), GFP_KERNEL);
 	if (Devices == NULL)
 		goto out_unregister;
+	
+	comp = crypto_alloc_comp("lzo", 0, 0);
+	if (!comp) printk(KERN_ALERT "crypto_comp didnt create at all\n");
 	for (i = 0; i < ndevices; i++) 
 		setup_device(Devices + i, i);
 
