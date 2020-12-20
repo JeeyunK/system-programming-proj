@@ -111,7 +111,7 @@ static void sbull_transfer(struct sbull_dev *dev, unsigned long sector,
 	if (write) {
 		comp_size[sector][0] = nbytes;
 		if (encryption_enabled) { encryptDecrypt(buffer, nbytes); }
-		printk(KERN_INFO "[comp] buffer : %s\n", buffer);
+		//printk(KERN_INFO "[comp] buffer : %s\n", buffer);
 		ret = crypto_comp_compress(comp, buffer, nbytes, output_buffer, &dsize); 
 		printk(KERN_INFO "[comp] compressed buffer : %s\n", output_buffer);
 		if (ret) {
@@ -139,7 +139,7 @@ static void sbull_transfer(struct sbull_dev *dev, unsigned long sector,
 		dsize = nbytes;
 		if (!comp_size[sector][1]) goto out;
 		slen = comp_size[sector][1];
-		printk(KERN_INFO "[decomp] nbytes:%ld, dsize:%u\n", nbytes, slen);
+		//printk(KERN_INFO "[decomp] nbytes:%ld, dsize:%u\n", nbytes, slen);
 		output_buffer2 = kmalloc(slen, GFP_KERNEL);
 		memset(output_buffer2, 0, slen);
 		memcpy(output_buffer2, dev->data + offset, slen);
