@@ -51,3 +51,9 @@ change_mode :
 
 main :
 	gcc main.c -o main
+	
+bench2 :
+	gcc bench2.c -o bench2
+	
+bench3 : 
+	gcc bench3.c -o bench3
