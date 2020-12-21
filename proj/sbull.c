@@ -33,6 +33,7 @@ static int sbull_major = 0;
 static int hardsect_size = 512;
 static int nsectors = 1024 * 1024;	/* How big the drive is */
 static int ndevices = 1;
+static int COMPRESSION_ENABLED = 1;
 
 int encryption_enabled;
 int input_key;
@@ -92,74 +93,93 @@ static void encryptDecrypt(char* buffer, int nbytes) {
 static void sbull_transfer(struct sbull_dev *dev, unsigned long sector,
 		unsigned long nsect, char *buffer, int write) {
 	// TODO: complete
-	unsigned long offset = sector * KERNEL_SECTOR_SIZE;
-	unsigned long nbytes = nsect * KERNEL_SECTOR_SIZE;
-	unsigned int dlen = COMP_BUF_SIZE;
-	unsigned int slen = 0;
-	int ret = 0;
-	unsigned int dsize = nbytes*2;
-	//struct crypto_comp *tfm;
+	unsigned long nsect, char *buffer, int write) {
 
-	//const char *name = dev->gd->disk_name;
-	struct crypto_comp *comp;
-	//unsigned int *dsize = kmalloc(sizeof(int), GFP_KERNEL);
-	//double prev, next;
-	char *output_buffer = kmalloc(dsize, GFP_KERNEL);
-	memset(output_buffer, 0, dsize);
-	//comp = kmalloc(sizeof(struct crypto_comp), GFP_KERNEL);	
-	comp = crypto_alloc_comp(dev->gd->disk_name, 0, 0);
-	//dsize = nbytes;
-	if ((offset + nbytes) > dev->size) {
-		printk(KERN_NOTICE "Beyond-end write (%ld %ld)\n", offset, nbytes);
-		return;
-	}
-	if (write) {
-		comp_size[sector][0] = nbytes;
-		if (encryption_enabled) { encryptDecrypt(buffer, nbytes); }
-		//comp = crypto_alloc_comp(name, 0, 0);
-		//*dsize = nbytes;
-		ret = crypto_comp_compress(comp, buffer, nbytes, output_buffer, &dsize); 
-		if (ret) {
-			pr_err("compress error!");
-			goto out;
-		}
-		//next = nbytes;
-		printk(KERN_ALERT "dsize :%ld\n", dsize);
-		if (dsize) {
-			//prev =*dsize;
-			comp_size[sector][1] = dsize;
-			if (compression_ratio != 0) {
-				compression_ratio = (compression_ratio + ((nbytes * 100) / dsize))/2;
-			}
-			else {
-				compression_ratio = (nbytes * 100) / dsize;
-			}
-		} else {
-			printk(KERN_ALERT "compression failed\n");
-			comp_size[sector][1] = nbytes;
-		}
-		memcpy(dev->data + offset, output_buffer, nbytes);
-	} else {
-		dsize = nbytes;
-		slen = comp_size[sector][1];
-		memset(output_buffer, 0, slen);
-		memcpy(output_buffer, dev->data + offset, slen);
-		ret = crypto_comp_decompress(comp, output_buffer, slen, buffer, &dsize);
-		if(ret){
-			pr_err("decompress error!");
-			goto out;
-		}
-		if (!dsize) {
-			printk(KERN_ALERT "decomp error! size over the buffer\n");
-			dsize = comp_size[sector][0];
-		}
-		memcpy(buffer, output_buffer, dsize);
-		if (encryption_enabled && key == input_key) { encryptDecrypt(buffer, nbytes); }
-	}
-out:
-	kfree(output_buffer);
-	//kfree(dsize);
-	return ;
+    unsigned long offset = sector * KERNEL_SECTOR_SIZE;
+    unsigned long nbytes = nsect * KERNEL_SECTOR_SIZE;
+    unsigned int slen = 0;
+    int ret = 0;
+    unsigned int dsize = nbytes;
+
+    char *output_buffer = kmalloc(dsize, GFP_KERNEL);
+    char *output_buffer2, *output_buffer3;
+    memset(output_buffer, 0, dsize);
+
+    if ((offset + nbytes) > dev->size) {
+        printk(KERN_NOTICE "Beyond-end write (%ld %ld)\n", offset, nbytes);
+        return;
+    }
+
+    if (write) {
+        if (COMPRESSION_ENABLED){
+            comp_size[sector][0] = nbytes;
+            if (encryption_enabled) { encryptDecrypt(buffer, nbytes); }
+            ret = crypto_comp_compress(comp, buffer, nbytes, output_buffer, &dsize);
+
+            if (ret) {
+                pr_err("compress error!");
+                goto out;
+            }
+            printk(KERN_ALERT "dsize :%d\n", dsize);
+            if (dsize) {
+                comp_size[sector][1] = dsize;
+                if (compression_ratio != 0) {
+                    compression_ratio = (compression_ratio + ((dsize * 100) / (unsigned int)nbytes))/2;
+            }
+            else {
+                compression_ratio = (dsize * 100) / (unsigned int)nbytes;
+            }
+            printk(KERN_CONT "compression ratio %d \n", compression_ratio);
+
+            } else {
+                printk(KERN_ALERT "compression failed\n");
+                comp_size[sector][1] = nbytes;
+            }
+
+            memcpy(dev->data + offset, output_buffer, nbytes);
+            kfree(output_buffer);
+        }
+        else{
+            memcpy(dev->data + offset, buffer, nbytes);
+    }
+    } else {
+    if(COMPRESSION_ENABLED){
+        dsize = comp_size[sector][0];
+        if(!comp_size[sector][1]) goto out;
+        slen = comp_size[sector][1];
+
+        output_buffer2 = kmalloc(slen, GFP_KERNEL);
+        memset(output_buffer2, 0, slen);
+        memcpy(output_buffer2, dev->data + offset, slen);
+
+        output_buffer3 = kmalloc(dsize, GFP_KERNEL);
+        memset(output_buffer3, 0, dsize);
+
+        if (!comp) printk(KERN_ALERT "comp NULL\n");
+
+        ret = crypto_comp_decompress(comp, output_buffer2, slen, output_buffer3, &dsize);
+
+        if(ret){
+            pr_err("decompress error!");
+            goto out;
+        }
+        if (!dsize) {
+            printk(KERN_ALERT "decomp error! size over the buffer\n");
+            dsize = comp_size[sector][0];
+        }
+
+        memcpy(buffer, output_buffer3, dsize);
+        kfree(output_buffer2);
+        kfree(output_buffer3);
+    }
+    else{
+        memcpy(buffer, dev->data + offset, nbytes);
+    }
+    }
+    out:
+
+    kfree(output_buffer);
+    return ;
 }
 
 
