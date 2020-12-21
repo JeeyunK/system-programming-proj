@@ -254,31 +254,29 @@ int sbull_ioctl (struct block_device *bdev, fmode_t mode,
                  unsigned int cmd, unsigned long arg)
 {
     /* TODO : Write your codes */
-    int buf, ret = 0;
-	//struct sbull_dev *dev = bdev->bd_disk->private_data;
+    int ret = 0;
+    switch(cmd){
+        case SBULL_PRINT_INFO:
+            switch (COMPRESSION_ENABLED) {
+                case 0: printk(KERN_INFO "Compression disabled\n"); break;
+                case 1: printk(KERN_INFO "Compression enabled\n"); break;
+            }
+            break;
 
-	switch (cmd) {
-		case 0:
-			// change mode
-			if (encryption_enabled == 0) {
-				input_key = 0;
-				printk("Change mode\n Encrypt mode\n");
-				encryption_enabled = 1;
-			} else if (encryption_enabled == 1) {
-				printk("Change mode\n Decrypt mode\n");
-				encryption_enabled = 0;
-			}
-			break;
-		case 1:
-			// receive key
-			copy_from_user((int*)&buf, (int*)arg, sizeof(int));
-			input_key = (char)buf;
-		default:
-			ret = -ENOTTY;
-			break;
-	}
+            case SBULL_ENABLE_COMPRESS:
+                COMPRESSION_ENABLED = 1;
+                break;
 
-	return ret; /* unknown command */
+            case SBULL_DISABLE_COMPRESS:
+                COMPRESSION_ENABLED = 0;
+                break;
+
+            default:
+                ret = -ENOTTY;
+                break;
+    }
+
+    return ret;
 }
 
 
