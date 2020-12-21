@@ -1,0 +1,34 @@
+w to use Linux kernel crypto compression
+
+-v0.1 2018.10.8 Sherlock init
+
+
+
+This doc shares the crypto compression API in Linux kernel.
+
+
+
+Linux kernel crypto subsystem supports different algorithms including compression
+
+algorithms. A hardware or software implementation can be added to crypto
+
+subsystem to do specific work.
+
+
+
+If you have a hardware module to do Zlib/Gzip compressions, you can write a
+
+driver, which can be registered into Linux kernel crypto subsystem.
+
+To use this hardware to do compression, you need not care about hardware detail,
+
+only thing you need to know is crypto API, here, you should know crypto compress
+
+related API.
+
+
+
+Firstly, we should create a crypto compression context using:
+
+We only consider synchronized API crypto_alloc_comp here.(struct crypto_comp)
+
